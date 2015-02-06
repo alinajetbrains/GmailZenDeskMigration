@@ -25,3 +25,6 @@ To get the list of gmail labels use: https://developers.google.com/gmail/api/v1/
   -p, --zdesk_pass      ZenDesk password  
   -?, --help            Print this message
   ```
+  
+##Logging
+Logs are stored in `gmail_zdesk_migration.log` file
