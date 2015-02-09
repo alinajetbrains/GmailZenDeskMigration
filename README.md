@@ -1,7 +1,12 @@
 easy_install --upgrade google-api-python-client  
 easy_install --upgrade python-gflags  
 easy_install --upgrade httplib2  
-easy_install --upgrade simplejson  
+easy_install --upgrade simplejson
+easy_install --upgrade zdesk
+
+##Enable the Gmail API
+To enable Gmail API follow the steps: https://developers.google.com/gmail/api/quickstart/quickstart-python#step_1_enable_the_gmail_api.  
+Download **client_secret.json** and put it next to migrate.py.
 
 ##Migrate threads from Gmail to ZenDesk:
   ```
