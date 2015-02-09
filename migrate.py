@@ -165,7 +165,8 @@ def thread_import(gmail_service, zendesk, thread):
         if email_to:
             value = 'To: ' + ", ".join('"%s" <%s>' % tup for tup in email_to) + '\n' + value
 
-        author_id = zendesk_users.get(email_from[0][0])
+        #author_id = zendesk_users.get(email_from[0][0])
+        author_id = zendesk_users.get(' '.join(email_from[0][0].split(' ',2)[:2]))
 
         if author_id is None:
             author_id = zendesk_users.get(END_USER_NAME)
