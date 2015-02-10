@@ -13,6 +13,7 @@ from oauth2client.tools import run
 from zdesk import Zendesk
 from datetime import datetime
 from mail_processing import *
+from apiclient import errors
 
 END_USER_NAME = 'user'
 STATUS = 'solved'
@@ -120,19 +121,24 @@ def thread_import(gmail_service, zendesk, thread):
     subject = None
     comments = []
 
-    thread_subject = None
+    #thread_subject = None
+    #thread_date = None
     #logging.info(messages)
-    for header in messages['messages'][0]['payload']['headers']:
-         if header['name'] == 'Subject':
-            thread_subject = header['value']
-            break
+    headers = dict([(item['name'],item['value']) for item in messages['messages'][0]['payload']['headers']])
+    thread_subject = headers['Subject']
+    thread_date = headers['Date']
+
+    #for header in messages['messages'][0]['payload']['headers']:
+    #     if header['name'] == 'Subject':
+    #        thread_subject = header['value']
+    #        break
 
     #Skip threads with one email
     if len(messages['messages']) == 1:
-        logging.warn('Thread ID: %s "%s" with one email is skipped' % (thread['id'], thread_subject))
+        logging.warn('Thread ID: %s Date: %s "%s" with one email is skipped' % (thread['id'], thread_date, thread_subject))
         return True
     else:
-        logging.info('Thread ID: %s "%s"' % (thread['id'], thread_subject))
+        logging.info('Thread ID: %s Date: %s "%s"' % (thread['id'], thread_date, thread_subject))
 
     for (i, message) in enumerate(messages['messages']):
         message = gmail_service.users().messages().get(userId='me', id=message['id'], format='raw').execute()
@@ -151,7 +157,7 @@ def thread_import(gmail_service, zendesk, thread):
         email_cc = getmailaddresses(msg, 'cc')
 
         value = get_body(parts)
-        if i != 0 or i != len(messages['messages'])-1:
+        if i != 0 and i != len(messages['messages'])-1:
             value = quote(value)
 
         if (value is None) or (value.strip() == ''):
@@ -176,7 +182,7 @@ def thread_import(gmail_service, zendesk, thread):
             requester_id = zendesk_users.get(END_USER_NAME)
             subject = getmailheader(msg.get('Subject', ''))
             created_at = date
-            logging.info('Subject: %s' % (subject))
+            #logging.info('Subject: %s' % (subject))
 
         logging.info('Message ID: %s' % (message['id']))
 
@@ -264,9 +270,47 @@ if __name__ == '__main__':
     # Build the Gmail service from discovery
     gmail_service = build('gmail', 'v1', http=http)
     page_token = None
+    processed_threads = set()
+    threads = []
 
+    try:
+        logging.info("Start extracting threads from Gmail")
+        response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label).execute()
+        if 'threads' in response:
+            threads.extend(response['threads'])
+
+        while 'nextPageToken' in response:
+            page_token = response['nextPageToken']
+            logging.info("Page token: %s" % page_token)
+            response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, pageToken=page_token).execute()
+            threads.extend(response['threads'])
+
+    except errors.HttpError, error:
+        logging.error('ERROR: page_token ' + page_token + ' ' + str(error))
+
+    #print len(threads)
+    #threads = set([x.get('id') for x in threads])
+    #print len(threads)
+    #for thread in threads:
+    #    if thread['id'] not in processed_threads:
+    #        processed_threads.add(thread['id'])
+    #print len(processed_threads)
+
+    logging.info("Finish extracting threads from Gmail")
+    logging.info("Start import to ZenDesk")
+
+    for thread in threads:
+        try:
+            if thread['id'] not in processed_threads:
+                thread_import(gmail_service, zendesk, thread)
+                processed_threads.add(thread['id'])
+        except Exception, e:
+            logging.error('ERROR: thread_id ' + thread['id'] + ' ' + str(e))
+
+    '''
     while True:
         try:
+            logging.info("Page token: %s" % page_token)
             # Retrieve a page of threads
             threads = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, pageToken=page_token).execute()
             page_token = threads.get('nextPageToken')
@@ -274,7 +318,9 @@ if __name__ == '__main__':
             if threads['threads']:
                 for thread in threads['threads']:
                     try:
-                        thread_import(gmail_service, zendesk, thread)
+                        if thread['id'] not in processed_threads:
+                            thread_import(gmail_service, zendesk, thread)
+                            processed_threads.add(thread['id'])
                     except Exception, e:
                         logging.error('ERROR: thread_id ' + thread['id'] + ' ' + str(e))
         except Exception, e:
@@ -282,6 +328,7 @@ if __name__ == '__main__':
 
         if page_token is None:
             break
+    '''
 
     logging.info('Import finished')
 

@@ -20,7 +20,7 @@ For more details see: https://developers.google.com/gmail/api/quickstart/quickst
 
 ##Migrate threads from Gmail to ZenDesk:
   ```
-  sudo migrate.py -d zdesk_domain -u zdesk_user -p zdesk_pass -l gmail_label
+  migrate.py -d zdesk_domain -u zdesk_user -p zdesk_pass -l gmail_label
 
   -d, --zdesk_domain    ZenDesk domain  
   -u, --zdesk_user      ZenDesk user  
