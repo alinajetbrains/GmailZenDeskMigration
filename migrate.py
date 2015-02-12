@@ -14,6 +14,7 @@ from zdesk import Zendesk
 from datetime import datetime
 from mail_processing import *
 from apiclient import errors
+from HTMLParser import HTMLParser
 
 END_USER_NAME = 'user'
 STATUS = 'solved'
@@ -54,6 +55,20 @@ OAUTH_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
 # Location of the credentials storage file
 STORAGE = Storage('gmail.storage')
 
+class MLStripper(HTMLParser):
+    def __init__(self):
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def get_data(self):
+        return ''.join(self.fed)
+
+def strip_tags(html):
+    s = MLStripper()
+    s.feed(html)
+    return s.get_data()
+
 def ticket_import(zendesk, requester_id, assignee_id, subject, tags, status, created_at, updated_at, comments):
     new_ticket = {
         "ticket": {
@@ -71,10 +86,15 @@ def ticket_import(zendesk, requester_id, assignee_id, subject, tags, status, cre
 
 def get_body(parts):
     for part in parts:
-        if part.is_body.startswith('text'):
-            payload, used_charset = decode_text(part.payload, part.charset, 'auto')
+        charset = 'UTF-8' if part.charset == 'gb2312' else part.charset #handle incorrect chinese encoding
+        if part.is_body.startswith('text/plain'):
+            payload, used_charset = decode_text(part.payload, charset, 'auto')
             #print payload.encode('UTF-8')
             return payload
+        if part.is_body.startswith('text/html'):
+            payload, used_charset = decode_text(part.payload, charset, 'auto')
+            #print payload.encode('UTF-8')
+            return strip_tags(payload)
     return None
 
 def quote(text):
@@ -291,6 +311,7 @@ if __name__ == '__main__':
     #print len(threads)
     #threads = set([x.get('id') for x in threads])
     #print len(threads)
+    #exit(0)
     #for thread in threads:
     #    if thread['id'] not in processed_threads:
     #        processed_threads.add(thread['id'])
