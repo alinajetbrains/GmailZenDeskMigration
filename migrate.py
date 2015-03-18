@@ -204,7 +204,7 @@ def thread_import(gmail_service, zendesk, thread):
             created_at = date
             #logging.info('Subject: %s' % (subject))
 
-        logging.info('Message ID: %s Date: %s' % (message['id'],thread_date))
+        logging.info('Message ID: %s Date: %s' % (message['id'], getmailheader(msg.get('Date', ''))))
         #logging.info('Message ID: %s' % (message['id']))
 
         updated_at = date
