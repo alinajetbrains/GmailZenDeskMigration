@@ -237,6 +237,9 @@ def usage():
         -?, --help            Print this message
         """
 
+
+
+
 if __name__ == '__main__':
 
     zdesk_domain = None
@@ -302,31 +305,26 @@ if __name__ == '__main__':
     processed_threads = set()
     threads = []
 
+
     try:
         logging.info("Start extracting threads from Gmail")
-        response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label).execute()
-        if 'threads' in response:
-            threads.extend(response['threads'])
+        for k in xrange(1, MAX_ATTEMPTS*2):
 
-        while 'nextPageToken' in response:
-            page_token = response['nextPageToken']
-            logging.info("Page token: %s" % page_token)
-            response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, pageToken=page_token).execute()
-            threads.extend(response['threads'])
+            response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, maxResults=k*5).execute()
+            if 'threads' in response:
+                threads.extend(response['threads'])
 
-    except errors.HttpError, error:
-        logging.error('ERROR: page_token ' + page_token + ' ' + str(error))
+            while 'nextPageToken' in response:
+                page_token = response['nextPageToken']
+                logging.info("Page token: %s" % page_token)
+                response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, maxResults=k*5, pageToken=page_token).execute()
+                threads.extend(response['threads'])
 
-    #print len(threads)
-    #threads = set([x.get('id') for x in threads])
-    #print len(threads)
-    #exit(0)
-    #for thread in threads:
-    #    if thread['id'] not in processed_threads:
-    #        processed_threads.add(thread['id'])
-    #print len(processed_threads)
+    except errors.HttpError, e:
+        logging.error('ERROR: page_token ' + page_token + ' ' + str(e))
 
-    logging.info("Finish extracting threads from Gmail")
+
+    logging.info("Finish extracting threads from Gmail. Number of threads: " + str(len(set([x.get('id') for x in threads]))))
     logging.info("Start import to ZenDesk")
 
     for thread in threads:
@@ -369,6 +367,9 @@ if __name__ == '__main__':
     '''
 
     logging.info('Import finished')
+
+
+
 
 
 
