@@ -1,1 +1,1 @@
-from .zdesk import Zendesk, get_id_from_url
+from .zdesk import Zendesk, ZendeskError, get_id_from_url

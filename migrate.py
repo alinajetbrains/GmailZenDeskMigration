@@ -10,7 +10,7 @@ from apiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
 from oauth2client.tools import run
-from zdesk import Zendesk
+from zdesk import Zendesk, ZendeskError
 from datetime import datetime
 from mail_processing import *
 from apiclient import errors
@@ -20,6 +20,7 @@ END_USER_NAME = 'user'
 STATUS = 'solved'
 TAGS = 'import'
 MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 * 1.37
+MAX_ATTEMPTS = 10
 
 REPLY_PATTERNS = [
     '^.?On .*wrote:',
@@ -116,13 +117,20 @@ def quote(text):
 def upload_attachments(zendesk, parts):
     token = None
     for part in parts:
-        if part.filename is not None and len(part.payload) < MAX_ATTACHMENT_SIZE:
+        if part.filename is not None and len(part.payload) > 0 and len(part.payload) < MAX_ATTACHMENT_SIZE:
             if token is None:
                 query = {'filename': part.filename}
             else:
                 query = {'filename': part.filename, 'token': token}
-            response = zendesk.upload_create(data=part.payload, query=query, complete_response=True, mime_type=part.type)
-            token = response['content']['upload']['token']
+            try:
+                response = zendesk.upload_create(data=part.payload, query=query, complete_response=True, mime_type=part.type)
+                token = response['content']['upload']['token']
+            except ZendeskError, e:
+                if e.error_code == 422:
+                    logging.warn('ERROR: ZenDesk error 442: "Unprocessable Entity". The attachment will be skipped.')
+                    continue
+                else:
+                    raise
     return token
 
 def convert_date(email_date):
@@ -322,12 +330,20 @@ if __name__ == '__main__':
     logging.info("Start import to ZenDesk")
 
     for thread in threads:
-        try:
-            if thread['id'] not in processed_threads:
-                thread_import(gmail_service, zendesk, thread)
-                processed_threads.add(thread['id'])
-        except Exception, e:
-            logging.error('ERROR: thread_id ' + thread['id'] + ' ' + str(e))
+        for k in xrange(1, MAX_ATTEMPTS):
+            try:
+                if thread['id'] not in processed_threads:
+                    thread_import(gmail_service, zendesk, thread)
+                    processed_threads.add(thread['id'])
+            except ZendeskError, e:
+                if e.error_code == 500:
+                    logging.error('ERROR: thread_id ' + thread['id'] + ' Something went wrong on ZenDesk side. The thread will be imported one more time')
+                    continue
+                else:
+                    logging.error('ERROR: thread_id ' + thread['id'] + str(e))
+            except Exception, e:
+                logging.error('ERROR: thread_id ' + thread['id'] + str(e))
+            break
 
     '''
     while True:
