@@ -5,6 +5,7 @@ import logging
 import traceback
 import sys
 import getopt
+import errno
 
 from apiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
@@ -15,6 +16,7 @@ from datetime import datetime
 from mail_processing import *
 from apiclient import errors
 from HTMLParser import HTMLParser
+from socket import error as socket_error
 
 END_USER_NAME = 'user'
 STATUS = 'solved'
@@ -88,6 +90,8 @@ def ticket_import(zendesk, requester_id, assignee_id, subject, tags, status, cre
 def get_body(parts):
     for part in parts:
         charset = 'UTF-8' if part.charset == 'gb2312' else part.charset #handle incorrect chinese encoding
+        if part.is_body is None:
+            continue
         if part.is_body.startswith('text/plain'):
             payload, used_charset = decode_text(part.payload, charset, 'auto')
             #print payload.encode('UTF-8')
@@ -127,7 +131,7 @@ def upload_attachments(zendesk, parts):
                 token = response['content']['upload']['token']
             except ZendeskError, e:
                 if e.error_code == 422:
-                    logging.warn('ERROR: ZenDesk error 442: "Unprocessable Entity". The attachment will be skipped.')
+                    logging.warn('WARN: ZenDesk error 442: "Unprocessable Entity". The attachment will be skipped.')
                     continue
                 else:
                     raise
@@ -139,7 +143,7 @@ def convert_date(email_date):
     return datetime.fromtimestamp(timestamp).isoformat()
 
 def thread_import(gmail_service, zendesk, thread):
-    messages = gmail_service.users().threads().get(userId='me', id=thread['id'], format='metadata').execute()
+    messages = gmail_service.users().threads().get(userId='me', id=thread, format='metadata').execute()
     #print json.dumps(messages, sort_keys=True, indent=4)
 
     created_at = None
@@ -153,7 +157,8 @@ def thread_import(gmail_service, zendesk, thread):
     #thread_date = None
     #logging.info(messages)
     headers = dict([(item['name'],item['value']) for item in messages['messages'][0]['payload']['headers']])
-    thread_subject = headers['Subject']
+    thread_subject = headers.get('Subject', 'Empty Subject')
+    #thread_subject = headers['Subject']
     thread_date = headers['Date']
 
     #for header in messages['messages'][0]['payload']['headers']:
@@ -163,10 +168,10 @@ def thread_import(gmail_service, zendesk, thread):
 
     #Skip threads with one email
     if len(messages['messages']) == 1:
-        logging.warn('Thread ID: %s Date: %s "%s" with one email is skipped' % (thread['id'], thread_date, thread_subject))
+        logging.warn('Thread ID: %s Date: %s "%s" with one email is skipped' % (thread, thread_date, thread_subject))
         return True
     else:
-        logging.info('Thread ID: %s Date: %s "%s"' % (thread['id'], thread_date, thread_subject))
+        logging.info('Thread ID: %s Date: %s "%s"' % (thread, thread_date, thread_subject))
 
     for (i, message) in enumerate(messages['messages']):
         message = gmail_service.users().messages().get(userId='me', id=message['id'], format='raw').execute()
@@ -208,9 +213,7 @@ def thread_import(gmail_service, zendesk, thread):
 
         if i is 0:
             requester_id = zendesk_users.get(END_USER_NAME)
-            subject = getmailheader(msg.get('Subject', ''))
             created_at = date
-            #logging.info('Subject: %s' % (subject))
 
         logging.info('Message ID: %s Date: %s' % (message['id'], getmailheader(msg.get('Date', ''))))
         #logging.info('Message ID: %s' % (message['id']))
@@ -222,7 +225,7 @@ def thread_import(gmail_service, zendesk, thread):
         comment = {'author_id': author_id, 'value': value, "created_at": date, "uploads": attachments}
         comments.append(comment)
 
-    ticket_import(zendesk, requester_id, assignee_id, subject, TAGS, STATUS, created_at, updated_at, comments)
+    ticket_import(zendesk, requester_id, assignee_id, thread_subject, TAGS, STATUS, created_at, updated_at, comments)
     return True
 
 def usage():
@@ -302,7 +305,6 @@ if __name__ == '__main__':
     # Build the Gmail service from discovery
     gmail_service = build('gmail', 'v1', http=http)
     page_token = None
-    processed_threads = set()
     threads = []
 
 
@@ -323,48 +325,27 @@ if __name__ == '__main__':
     except errors.HttpError, e:
         logging.error('ERROR: page_token ' + page_token + ' ' + str(e))
 
+    threads = set([x.get('id') for x in threads])
 
-    logging.info("Finish extracting threads from Gmail. Number of threads: " + str(len(set([x.get('id') for x in threads]))))
+    logging.info("Finish extracting threads from Gmail. Number of threads: " + str(len(threads)))
     logging.info("Start import to ZenDesk")
 
     for thread in threads:
         for k in xrange(1, MAX_ATTEMPTS):
             try:
-                if thread['id'] not in processed_threads:
-                    thread_import(gmail_service, zendesk, thread)
-                    processed_threads.add(thread['id'])
+                thread_import(gmail_service, zendesk, thread)
             except ZendeskError, e:
                 if e.error_code == 500:
-                    logging.error('ERROR: thread_id ' + thread['id'] + ' Something went wrong on ZenDesk side. The thread will be imported one more time')
+                    logging.error('WARN: thread_id ' + thread ' ' + type(Exception(e)).__name__ + ' ' + ' Something went wrong on ZenDesk side. The thread will be imported one more time')
                     continue
                 else:
-                    logging.error('ERROR: thread_id ' + thread['id'] + str(e))
+                    logging.error('ERROR: thread_id ' + thread + ' ' + type(Exception(e)).__name__ + ' ' + str(e))
+            except socket_error as e:
+                logging.error('WARN: thread_id ' + thread + ' ' + type(Exception(e)).__name__ + ' ' + str(e) + ' The thread will be imported one more time')
+                continue
             except Exception, e:
-                logging.error('ERROR: thread_id ' + thread['id'] + str(e))
+                 logging.error('ERROR: thread_id ' + thread + ' ' + type(Exception(e)).__name__ + ' ' + str(e))
             break
-
-    '''
-    while True:
-        try:
-            logging.info("Page token: %s" % page_token)
-            # Retrieve a page of threads
-            threads = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, pageToken=page_token).execute()
-            page_token = threads.get('nextPageToken')
-
-            if threads['threads']:
-                for thread in threads['threads']:
-                    try:
-                        if thread['id'] not in processed_threads:
-                            thread_import(gmail_service, zendesk, thread)
-                            processed_threads.add(thread['id'])
-                    except Exception, e:
-                        logging.error('ERROR: thread_id ' + thread['id'] + ' ' + str(e))
-        except Exception, e:
-            logging.error('ERROR: page_token ' + page_token + ' ' + str(e))
-
-        if page_token is None:
-            break
-    '''
 
     logging.info('Import finished')
 
