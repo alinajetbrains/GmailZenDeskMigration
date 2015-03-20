@@ -310,7 +310,7 @@ if __name__ == '__main__':
 
     try:
         logging.info("Start extracting threads from Gmail")
-        for k in xrange(1, MAX_ATTEMPTS*2):
+        for k in xrange(1, MAX_ATTEMPTS*2+1):
 
             response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, maxResults=k*5).execute()
             if 'threads' in response:
