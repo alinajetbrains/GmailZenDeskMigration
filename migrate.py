@@ -23,6 +23,7 @@ STATUS = 'solved'
 TAGS = 'import'
 MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 * 1.37
 MAX_ATTEMPTS = 10
+ZENDESK_MAILER = 'Zendesk Mailer'
 
 REPLY_PATTERNS = [
     '^.?On .*wrote:',
@@ -177,6 +178,9 @@ def thread_import(gmail_service, zendesk, thread):
         message = gmail_service.users().messages().get(userId='me', id=message['id'], format='raw').execute()
         raw = base64.urlsafe_b64decode(message['raw'].encode('UTF-8'))
         msg = email.message_from_string(raw)
+        if msg.get('X-Mailer') == ZENDESK_MAILER:
+            continue
+
         parts = get_mail_contents(msg)
 
         email_from = getmailaddresses(msg, 'from')
@@ -225,7 +229,10 @@ def thread_import(gmail_service, zendesk, thread):
         comment = {'author_id': author_id, 'value': value, "created_at": date, "uploads": attachments}
         comments.append(comment)
 
-    ticket_import(zendesk, requester_id, assignee_id, thread_subject, TAGS, STATUS, created_at, updated_at, comments)
+    if comments:
+        ticket_import(zendesk, requester_id, assignee_id, thread_subject, TAGS, STATUS, created_at, updated_at, comments)
+    else:
+        logging.info('WARN: Thread ID: ' + thread + ' is skipped. No non-ZenDesk messages in thread.')
     return True
 
 def usage():
@@ -320,7 +327,8 @@ if __name__ == '__main__':
                 page_token = response['nextPageToken']
                 logging.info("Page token: %s" % page_token)
                 response = gmail_service.users().threads().list(userId='me', labelIds=gmail_label, maxResults=k*5, pageToken=page_token).execute()
-                threads.extend(response['threads'])
+                if 'threads' in response:
+                    threads.extend(response['threads'])
 
     except errors.HttpError, e:
         logging.error('ERROR: page_token ' + page_token + ' ' + str(e))
