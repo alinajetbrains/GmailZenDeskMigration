@@ -38,7 +38,7 @@ To get the list of gmail labels use: https://developers.google.com/gmail/api/v1/
   -d, --zdesk_domain    ZenDesk domain  
   -u, --zdesk_user      ZenDesk user  
   -p, --zdesk_pass      ZenDesk password 
-  -t, --zdesk_tag	ZenDesk tag
+  -t, --zdesk_tag       ZenDesk tag
   -?, --help            Print this message
   ```
   
