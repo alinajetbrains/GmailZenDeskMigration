@@ -33,11 +33,12 @@ To get the list of gmail labels use: https://developers.google.com/gmail/api/v1/
 
 ##Delete all tickets in ZenDesk account:
   ```
-  zendesk_delete_all_tickets.py -d zdesk_domain -u zdesk_user -p zdesk_pass
+  zendesk_delete_all_tickets.py -d zdesk_domain -u zdesk_user -p zdesk_pass -t zdesk_tag
 
   -d, --zdesk_domain    ZenDesk domain  
   -u, --zdesk_user      ZenDesk user  
-  -p, --zdesk_pass      ZenDesk password  
+  -p, --zdesk_pass      ZenDesk password 
+  -t, --zdesk_tag	ZenDesk tag
   -?, --help            Print this message
   ```
   
