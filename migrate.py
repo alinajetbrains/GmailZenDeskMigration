@@ -6,6 +6,7 @@ import traceback
 import sys
 import getopt
 import errno
+import time
 
 from apiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
@@ -295,7 +296,23 @@ if __name__ == '__main__':
 
     # Manually creating a new connection object
     zendesk = Zendesk(zdesk_domain, zdesk_user, zdesk_pass)
-    zendesk_users = dict([(item['name'], item['id']) for item in zendesk.users_list()['users']])
+
+    start_time = 1
+    count = 100
+    zendesk_users = []
+    while count == 100:
+        try:
+            response = zendesk.incremental_users_list(start_time=start_time)
+            zendesk_users.extend(response['users'])
+            start_time = response['end_time']
+            count = response['count']
+            time.sleep(7)
+        except ZendeskError, e:
+            print 'ERROR: ' + type(Exception(e)).__name__ + ' ' + str(e)
+
+    zendesk_users = {x['name']:x['id'] for x in zendesk_users}
+
+    #zendesk_users = dict([(item['name'], item['id']) for item in zendesk.users_list()['users']])
 
     # Start the OAuth flow to retrieve credentials
     flow = flow_from_clientsecrets(CLIENT_SECRET_FILE, scope=OAUTH_SCOPE)
