@@ -360,7 +360,7 @@ if __name__ == '__main__':
             try:
                 thread_import(gmail_service, zendesk, thread)
             except ZendeskError, e:
-                if e.error_code == 500:
+                if 500 <= e.error_code < 600:
                     logging.error('WARN: thread_id ' + thread + ' ' + type(Exception(e)).__name__ + ' ' + ' Something went wrong on ZenDesk side. The thread will be imported one more time')
                     continue
                 else:
