@@ -19,7 +19,7 @@ from apiclient import errors
 from HTMLParser import HTMLParser
 from socket import error as socket_error
 
-END_USER_NAME = 'user'
+END_USER_NAME = 'Feedback mailbox import'
 STATUS = 'solved'
 TAGS = 'import'
 MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 * 1.37
