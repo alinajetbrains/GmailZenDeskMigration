@@ -1,8 +1,10 @@
 easy_install --upgrade google-api-python-client  
 easy_install --upgrade python-gflags  
 easy_install --upgrade httplib2  
-easy_install --upgrade simplejson
+easy_install --upgrade simplejson  
 easy_install --upgrade zdesk
+
+Python 2.7
 
 ##Enable the Gmail API
 
