@@ -24,7 +24,7 @@ STATUS = 'solved'
 TAGS = 'import'
 MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024 * 1.37
 MAX_ATTEMPTS = 10
-ZENDESK_MAILER = 'Zendesk Mailer'
+#ZENDESK_MAILER = 'Zendesk Mailer'
 
 REPLY_PATTERNS = [
     '^.?On .*wrote:',
@@ -179,8 +179,8 @@ def thread_import(gmail_service, zendesk, thread):
         message = gmail_service.users().messages().get(userId='me', id=message['id'], format='raw').execute()
         raw = base64.urlsafe_b64decode(message['raw'].encode('UTF-8'))
         msg = email.message_from_string(raw)
-        if msg.get('X-Mailer') == ZENDESK_MAILER:
-            continue
+        #if msg.get('X-Mailer') == ZENDESK_MAILER:
+        #    continue
 
         parts = get_mail_contents(msg)
 
