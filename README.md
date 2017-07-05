@@ -6,7 +6,7 @@ easy_install --upgrade zdesk
 
 Python 2.7
 
-##Enable the Gmail API
+## Enable the Gmail API
 
 To enable Gmail API follow the steps:  
 	1.	Go to the [Google Developers Console](https://console.developers.google.com).  
@@ -20,7 +20,7 @@ To enable Gmail API follow the steps:
 For more details see: https://developers.google.com/gmail/api/quickstart/quickstart-python#step_1_enable_the_gmail_api.  
 
 
-##Migrate threads from Gmail to ZenDesk:
+## Migrate threads from Gmail to ZenDesk:
   ```
   migrate.py -d zdesk_domain -u zdesk_user -p zdesk_pass -l gmail_label
 
@@ -33,7 +33,7 @@ For more details see: https://developers.google.com/gmail/api/quickstart/quickst
 
 To get the list of gmail labels use: https://developers.google.com/gmail/api/v1/reference/users/labels/list
 
-##Delete all tickets in ZenDesk account:
+## Delete all tickets in ZenDesk account:
   ```
   zendesk_delete_all_tickets.py -d zdesk_domain -u zdesk_user -p zdesk_pass -t zdesk_tag
 
@@ -44,5 +44,5 @@ To get the list of gmail labels use: https://developers.google.com/gmail/api/v1/
   -?, --help            Print this message
   ```
   
-##Logging
+## Logging
 Logs are stored in `gmail_zdesk_migration.log` file
